@@ -34,12 +34,11 @@ class FreezeCommand(Command):
             iced = IcedPoet(project_root)
             iced.check()
             fridge[iced.name] = iced
-            self.line(str(project_root))
 
         for iced in fridge.values():
             iced.set_fridge(fridge)
             for w in iced.freeze():
-                self.line(f"froze {iced.name}-{iced.version} -> {w}")
+                self.line(f"froze {iced.name} {iced.version} -> {w}")
 
         return 0
 
@@ -155,18 +154,14 @@ class IcedPoet:
         hash_digest = urlsafe_b64encode(hashsum.digest()).decode("ascii").rstrip("=")
 
         output = StringIO()
-        writer = csv.writer(
-            output,
-            delimiter=csv.excel.delimiter,
-            quotechar=csv.excel.quotechar,
-            lineterminator="\n",
-        )
-        reader = csv.reader(
-            TextIOWrapper(records_fh, encoding="utf8"),
-            delimiter=csv.excel.delimiter,
-            quotechar=csv.excel.quotechar,
-            lineterminator="\n",
-        )
+        csv_params = {
+            "delimiter": csv.excel.delimiter,
+            "quotechar": csv.excel.quotechar,
+            "lineterminator": "\n",
+        }
+        writer = csv.writer(output, **csv_params)
+        reader = csv.reader(TextIOWrapper(records_fh, encoding="utf8"), **csv_params)
+
         for row in reader:
             if row[0] == md_path:
                 continue
