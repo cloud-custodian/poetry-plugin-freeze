@@ -8,12 +8,13 @@ A common issue when publishing a Python application's release into PyPI, is whet
 
 The dependency ecosystem is both complex and fragile. The emergence of lock files to ensure repeatability is testimony both to the problem and one solution. Yet when we go to publish in the packaging ecosystem we do so with non frozen dependencies not with lockfiles. That means the testing pieplines that goes to produce a release is against a lockfile but the release is divorced of its contents.
 
-The various language package distribution channels (npm, pypi, rubygems, etc) are used for two different distribution purposes, for both libraries and applications. Generally speaking libraries should be relatively liberal on their own dependencies baring perhaps major versions to minimize conflicts for applications depending on them and ideal consist of minimal dependencies graphs. But for applications repeatible, verifyable installs are fundamental goals with potentially large dependency graphs. ie. libraries have developers and applications as 
-consumers, applications have users as consumers.
+The various language package distribution channels (npm, pypi, rubygems, etc) are used for two different distribution purposes, for both libraries and applications. Generally speaking libraries should be relatively liberal on their own dependencies baring perhaps major versions to minimize conflicts for applications depending on them and ideal consist of minimal dependencies graphs. But for applications repeatible, verifyable installs are fundamental goals with potentially large dependency graphs. ie. libraries have developers and applications as consumers, applications have users as consumers.
+
 
 ## What
 
-A post build / pre publish command to allow for creating wheels with frozen dependencies.
+A post build / pre publish command to allow for creating wheels with frozen dependencies. Basically we update metadata on Requires-Dist to replace the pyproject.toml
+based version specification to a frozen (ie. ==version) one based on the version from the poetry lock information.
 
 ## Usage
 
