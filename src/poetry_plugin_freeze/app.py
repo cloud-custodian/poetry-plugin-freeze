@@ -110,14 +110,8 @@ class IcedPoet:
         )
 
         dep_package_map = {p.package.name: p for p in dep_packages}
-        try:
-            for w in wheels:
-                self.freeze_wheel(w, dep_package_map)
-        except Exception:
-            import pdb, traceback, sys
-
-            traceback.print_exc()
-            pdb.post_mortem(sys.exc_info()[-1])
+        for w in wheels:
+            self.freeze_wheel(w, dep_package_map)
 
         return wheels
 
@@ -132,6 +126,11 @@ class IcedPoet:
             extras = ""
             if ";" in v:
                 extras = v.split(";", 1)[-1]
+            # This happens when running multiple times on the same
+            # wheel, where we've inserted a path dev dependency.
+            if pkg_name not in dep_packages:
+                continue
+
             dep_pkg = dep_packages[pkg_name]
             requires = "%s (==%s)" % (pkg_name, dep_pkg.package.version)
             if extras:
@@ -173,7 +172,9 @@ class IcedPoet:
                 continue
             writer.writerow(row)
 
-        writer.writerow((md_path, f"sha256={hash_digest}", len(str(dist_meta))))
+        writer.writerow(
+            (md_path, f"sha256={hash_digest}", len(str(dist_meta).encode("utf8")))
+        )
         return output.getvalue()
 
     def freeze_wheel(self, wheel_path, dep_packages):
@@ -201,6 +202,7 @@ class IcedPoet:
                 # first copy all files to frozen zip
                 for info in source_whl.infolist():
                     if info.filename in (md_path, record_path):
+                        sample = info
                         continue
                     info_fh = source_whl.open(info)
                     frozen_whl.writestr(
@@ -208,9 +210,18 @@ class IcedPoet:
                     )
 
                 # finally add in our modified files
+                date_time = (2016, 1, 1, 0, 0, 0)
+
+                md_info = zipfile.ZipInfo(md_path, date_time)
+                md_info.external_attr = sample.external_attr
                 frozen_whl.writestr(
-                    md_path, str(dist_meta), compress_type=zipfile.ZIP_DEFLATED
+                    md_info,
+                    str(dist_meta).encode("utf8"),
+                    compress_type=zipfile.ZIP_DEFLATED,
                 )
+
+                record_info = zipfile.ZipInfo(record_path, date_time)
+                record_info.external_attr = sample.external_attr
                 frozen_whl.writestr(
                     record_path, record_text, compress_type=zipfile.ZIP_DEFLATED
                 )
