@@ -21,7 +21,7 @@ jobs:
       - name: Linting
         run: |
           pip install black ruff
-          make check
+          make lint
 
   Tests:
     needs: Lint
