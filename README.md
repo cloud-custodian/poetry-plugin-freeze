@@ -18,7 +18,7 @@ A post build / pre publish command to allow for creating wheels with frozen depe
 
 ```shell
 # install plugin
-poetry self install poetry-plugin-freeze
+poetry self add poetry-plugin-freeze
 
 # build per normal
 poetry build
