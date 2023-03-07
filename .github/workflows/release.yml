@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: |
           poetry build
-          sha2565sum dist/*
+          sha256sum dist/*
 
       - name: Create Release
         uses: ncipollo/release-action@v1
