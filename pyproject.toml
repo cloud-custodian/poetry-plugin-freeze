@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "poetry-plugin-freeze"
-version = "1.0.0"
+version = "1.0.1"
 description = "Poetry plugin to freeze a wheel's dependencies per lock file"
 license = "Apache-2.0"
 authors = ["Kapil Thangavelu <kapilt@gmail.com>"]

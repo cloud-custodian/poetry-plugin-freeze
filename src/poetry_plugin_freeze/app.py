@@ -57,6 +57,13 @@ def project_roots(root):
         yield config_path.parent
 
 
+def get_sha256_digest(content: bytes):
+    hashsum = hashlib.sha256()
+    hashsum.update(content)
+    hash_digest = urlsafe_b64encode(hashsum.digest()).decode("ascii").rstrip("=")
+    return hash_digest
+
+
 class IcedPoet:
     factory = Factory()
 
@@ -79,13 +86,17 @@ class IcedPoet:
         return self.poetry.package.name
 
     @property
+    def distro_name(self):
+        return distribution_name(self.name)
+
+    @property
     def version(self):
         return self.poetry.package.version
 
     def get_wheels(self):
         dist_dir = self.project_dir / self.wheel_dir
         wheels = list(dist_dir.glob("*whl"))
-        prefix = "%s-%s" % (distribution_name(self.name), self.meta.version)
+        prefix = "%s-%s" % (self.distro_name, self.meta.version)
         for w in wheels:
             if not w.name.startswith(prefix):
                 continue
@@ -126,7 +137,8 @@ class IcedPoet:
             if ";" in v:
                 extras = v.split(";", 1)[-1]
             # This happens when running multiple times on the same
-            # wheel, where we've inserted a path dev dependency.
+            # wheel, where we've inserted a path dev dependency but
+            # we're resolving against normal dependencies.
             if pkg_name not in dep_packages:
                 continue
 
@@ -144,15 +156,14 @@ class IcedPoet:
         for dep in group.dependencies:
             if not (dep.is_file() or dep.is_directory()):
                 continue
-            assert dep.name in self.fridge, "Unknown path dependency"
+            if dep.is_vcs() or dep.is_url():
+                continue
+            assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
             iced = self.fridge[dep.name]
             dist_meta.add_header("Requires-Dist", f"{dep.name} (=={iced.version})")
 
     def freeze_record(self, records_fh, dist_meta, md_path):
-        hashsum = hashlib.sha256()
-        hashsum.update(str(dist_meta).encode("utf8"))
-        hash_digest = urlsafe_b64encode(hashsum.digest()).decode("ascii").rstrip("=")
-
+        hash_digest = get_sha256_digest(str(dist_meta).encode("utf8"))
         output = StringIO()
         csv_params = {
             "delimiter": csv.excel.delimiter,
@@ -174,7 +185,7 @@ class IcedPoet:
 
     def freeze_wheel(self, wheel_path, dep_packages):
         dist_info = "%s-%s.dist-info" % (
-            distribution_name(self.name),
+            self.distro_name,
             self.meta.version,
         )
         md_path = f"{dist_info}/METADATA"
