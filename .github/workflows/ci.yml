@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          depth: 2
 
       - name: Install poetry
         run: pipx install poetry
