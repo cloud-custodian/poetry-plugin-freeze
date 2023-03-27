@@ -14,6 +14,10 @@ The various language package distribution channels (npm, pypi, rubygems, etc) ar
 
 A post build / pre publish command to allow for creating wheels with frozen dependencies. Basically we update wheel metadata for Requires-Dist to replace the pyproject.toml based version specification to a frozen (ie. ==version) one based on the version from the poetry lock information.
 
+
+Note we can't use poetry to publish because the frozen wheel because it uses metadata from pyproject.toml instead
+of frozen wheel metadata.
+
 ## Usage
 
 ```shell
@@ -26,8 +30,11 @@ poetry build
 # add freeze step
 poetry freeze-wheel
 
+# Note we can't use poetry to publish because it uses metadata from pyproject.toml instead 
+# of frozen wheel metadata.
+
 # publish per normal
-poetry publish
+twine upload dist/*.whl
 ```
 
 ## Mono-Repo Support

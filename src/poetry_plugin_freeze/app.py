@@ -12,6 +12,7 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
+from poetry.packages import DependencyPackage
 from poetry.core.masonry.metadata import Metadata
 from poetry.core.masonry.utils.helpers import distribution_name
 from poetry.factory import Factory
@@ -106,10 +107,14 @@ class IcedPoet:
         wheels = list(self.get_wheels())
         if not wheels:
             return []
+        dep_package_map = self.get_dep_packages()
+        for w in wheels:
+            self.freeze_wheel(w, dep_package_map)
+        return wheels
 
-        root_package = self.poetry.package.with_dependency_groups(
-            [MAIN_GROUP], only=True
-        )
+    def get_dep_packages(self):
+        root_package = self.poetry.package.with_dependency_groups([MAIN_GROUP], only=True)
+
         dep_packages = list(
             get_project_dependency_packages(
                 self.poetry.locker,
@@ -118,40 +123,34 @@ class IcedPoet:
                 project_python_marker=root_package.python_marker,
             )
         )
+        return {p.package.name: p for p in dep_packages}
 
-        dep_package_map = {p.package.name: p for p in dep_packages}
-        for w in wheels:
-            self.freeze_wheel(w, dep_package_map)
+    def get_frozen_deps(self, dep_packages):
+        lines = []
+        for pkg_name, dep_package in dep_packages.items():
+            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
+            requirement = dep_package.dependency.to_pep_508(with_extras=False)
+            if ";" in requirement:
+                markers = requirement.split(";", 1)[1].strip()
+                require_dist += f" ; {markers}"
+            lines.append(require_dist)
+        return lines
 
-        return wheels
+    def replace_deps(self, dist_meta, dep_lines):
+        start_pos = 0
+        for m in dist_meta.get_all("Requires-Dist"):
+            if not start_pos:
+                start_pos = dist_meta._headers.index(("Requires-Dist", m))
+            dist_meta._headers.remove(("Requires-Dist", m))
 
-    def freeze_deps(self, dist_meta, dep_packages):
-        frozen_headers = []
+        for idx, h in enumerate(dep_lines):
+            dist_meta._headers.insert(start_pos + idx, ("Requires-Dist", h))
 
-        for k, v in dist_meta.items():
-            if k != "Requires-Dist":
-                frozen_headers.append((k, v))
-                continue
-            pkg_name = v.split(" ", 1)[0]
-            extras = ""
-            if ";" in v:
-                extras = v.split(";", 1)[-1]
-            # This happens when running multiple times on the same
-            # wheel, where we've inserted a path dev dependency but
-            # we're resolving against normal dependencies.
-            if pkg_name not in dep_packages:
-                continue
-
-            dep_pkg = dep_packages[pkg_name]
-            requires = "%s (==%s)" % (pkg_name, dep_pkg.package.version)
-            if extras:
-                requires += "; %s" % extras
-            frozen_headers.append((k, requires))
-
-        dist_meta._headers = frozen_headers
         return dist_meta
 
-    def freeze_path_deps(self, dist_meta, group="dev"):
+    def get_path_deps(self, group="dev"):
+        # assuming we're consistent install across deps.
+        package_deps = {}
         group = self.poetry.package.dependency_group(group)
         for dep in group.dependencies:
             if not (dep.is_file() or dep.is_directory()):
@@ -160,7 +159,11 @@ class IcedPoet:
                 continue
             assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
             iced = self.fridge[dep.name]
-            dist_meta.add_header("Requires-Dist", f"{dep.name} (=={iced.version})")
+            package_deps[dep.name] = DependencyPackage(
+                dependency=iced.poetry.package.to_dependency(), package=iced.poetry.package
+            )
+            package_deps.update(iced.get_dep_packages())
+        return package_deps
 
     def freeze_record(self, records_fh, dist_meta, md_path):
         hash_digest = get_sha256_digest(str(dist_meta).encode("utf8"))
@@ -178,9 +181,7 @@ class IcedPoet:
                 continue
             writer.writerow(row)
 
-        writer.writerow(
-            (md_path, f"sha256={hash_digest}", len(str(dist_meta).encode("utf8")))
-        )
+        writer.writerow((md_path, f"sha256={hash_digest}", len(str(dist_meta).encode("utf8"))))
         return output.getvalue()
 
     def freeze_wheel(self, wheel_path, dep_packages):
@@ -195,8 +196,10 @@ class IcedPoet:
             # freeze deps in metadata and update records
             md_text = source_whl.open(md_path).read().decode("utf8")
             dist_meta = Parser().parsestr(md_text)
-            self.freeze_deps(dist_meta, dep_packages)
-            self.freeze_path_deps(dist_meta)
+            deps = self.get_path_deps()
+            deps.update(dep_packages)
+            dep_lines = self.get_frozen_deps(deps)
+            self.replace_deps(dist_meta, dep_lines)
 
             with source_whl.open(record_path) as record_fh:
                 record_text = self.freeze_record(record_fh, dist_meta, md_path)
@@ -211,9 +214,7 @@ class IcedPoet:
                         sample = info
                         continue
                     info_fh = source_whl.open(info)
-                    frozen_whl.writestr(
-                        info, info_fh.read(), compress_type=zipfile.ZIP_DEFLATED
-                    )
+                    frozen_whl.writestr(info, info_fh.read(), compress_type=zipfile.ZIP_DEFLATED)
 
                 # finally add in our modified files
                 date_time = (2016, 1, 1, 0, 0, 0)
@@ -228,8 +229,6 @@ class IcedPoet:
 
                 record_info = zipfile.ZipInfo(record_path, date_time)
                 record_info.external_attr = sample.external_attr
-                frozen_whl.writestr(
-                    record_path, record_text, compress_type=zipfile.ZIP_DEFLATED
-                )
+                frozen_whl.writestr(record_path, record_text, compress_type=zipfile.ZIP_DEFLATED)
 
         shutil.move(temp_path, str(wheel_path))
