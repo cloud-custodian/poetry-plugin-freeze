@@ -54,9 +54,52 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ("Classifier", "License :: OSI Approved :: Apache Software License"),
         ("Classifier", "Programming Language :: Python :: 3"),
         ("Classifier", "Programming Language :: Python :: 3.11"),
-        ("Requires-Dist", "pytest (==7.2.2)"),
-        ("Requires-Dist", "pytest-cov (==4.0.0)"),
-        ("Requires-Dist", "app-b (==0.1)"),
+        (
+            "Requires-Dist",
+            'pytest (==7.2.2) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'pytest-cov (==4.0.0) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'attrs (==22.2.0) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'colorama (==0.4.6) ; python_version >= "3.10" and python_version < "4.0" '
+            'and sys_platform == "win32"',
+        ),
+        (
+            "Requires-Dist",
+            'exceptiongroup (==1.1.0) ; python_version >= "3.10" and python_version < "3.11"',
+        ),
+        (
+            "Requires-Dist",
+            'iniconfig (==2.0.0) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'packaging (==23.0) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'pluggy (==1.0.0) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'tomli (==2.0.1) ; python_version >= "3.10" and python_full_version <= '
+            '"3.11.0a6"',
+        ),
+        (
+            "Requires-Dist",
+            'coverage (==7.2.1) ; python_version >= "3.10" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
+            'app-b (==0.1) ; python_version >= "3.8" and python_version < "4.0"',
+        ),
     ]
 
     assert records == [
@@ -73,13 +116,13 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ["app_c-0.2.dist-info/RECORD", "", ""],
         [
             "app_c-0.2.dist-info/METADATA",
-            "sha256=sTFPVGUHyrBa51vKxDR_p-4vAQS1pYWIsTepSOadLF4",
-            "394",
+            "sha256=NzA252mOv6ck7zka4ZneS7TXiqDaan1ulWrNL44_JuE",
+            "1299",
         ],
     ]
 
     md_bytes = wheel.open(
         f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA"
     ).read()
-    assert len(md_bytes) == 394
-    assert get_sha256_digest(md_bytes) == "sTFPVGUHyrBa51vKxDR_p-4vAQS1pYWIsTepSOadLF4"
+    assert len(md_bytes) == 1299
+    assert get_sha256_digest(md_bytes) == "NzA252mOv6ck7zka4ZneS7TXiqDaan1ulWrNL44_JuE"

@@ -110,6 +110,7 @@ class IcedPoet:
         root_package = self.poetry.package.with_dependency_groups(
             [MAIN_GROUP], only=True
         )
+
         dep_packages = list(
             get_project_dependency_packages(
                 self.poetry.locker,
@@ -118,7 +119,6 @@ class IcedPoet:
                 project_python_marker=root_package.python_marker,
             )
         )
-
         dep_package_map = {p.package.name: p for p in dep_packages}
         for w in wheels:
             self.freeze_wheel(w, dep_package_map)
@@ -128,27 +128,23 @@ class IcedPoet:
     def freeze_deps(self, dist_meta, dep_packages):
         frozen_headers = []
 
-        for k, v in dist_meta.items():
-            if k != "Requires-Dist":
-                frozen_headers.append((k, v))
-                continue
-            pkg_name = v.split(" ", 1)[0]
-            extras = ""
-            if ";" in v:
-                extras = v.split(";", 1)[-1]
-            # This happens when running multiple times on the same
-            # wheel, where we've inserted a path dev dependency but
-            # we're resolving against normal dependencies.
-            if pkg_name not in dep_packages:
-                continue
+        start_pos = 0
+        for m in dist_meta.get_all("Requires-Dist"):
+            if not start_pos:
+                start_pos = dist_meta._headers.index(("Requires-Dist", m))
+            dist_meta._headers.remove(("Requires-Dist", m))
 
-            dep_pkg = dep_packages[pkg_name]
-            requires = "%s (==%s)" % (pkg_name, dep_pkg.package.version)
-            if extras:
-                requires += "; %s" % extras
-            frozen_headers.append((k, requires))
+        for pkg_name, dep_package in dep_packages.items():
+            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
+            requirement = dep_package.dependency.to_pep_508(with_extras=False)
+            if ";" in requirement:
+                markers = requirement.split(";", 1)[1].strip()
+                require_dist += f" ; {markers}"
+            frozen_headers.append(("Requires-Dist", require_dist))
 
-        dist_meta._headers = frozen_headers
+        for idx, h in enumerate(frozen_headers):
+            dist_meta._headers.insert(start_pos + idx, h)
+
         return dist_meta
 
     def freeze_path_deps(self, dist_meta, group="dev"):
@@ -160,7 +156,9 @@ class IcedPoet:
                 continue
             assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
             iced = self.fridge[dep.name]
-            dist_meta.add_header("Requires-Dist", f"{dep.name} (=={iced.version})")
+            dist_meta.add_header(
+                "Requires-Dist", iced.poetry.package.to_dependency().to_pep_508()
+            )
 
     def freeze_record(self, records_fh, dist_meta, md_path):
         hash_digest = get_sha256_digest(str(dist_meta).encode("utf8"))
