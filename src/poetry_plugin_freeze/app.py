@@ -107,9 +107,7 @@ class IcedPoet:
         if not wheels:
             return []
 
-        root_package = self.poetry.package.with_dependency_groups(
-            [MAIN_GROUP], only=True
-        )
+        root_package = self.poetry.package.with_dependency_groups([MAIN_GROUP], only=True)
 
         dep_packages = list(
             get_project_dependency_packages(
@@ -156,9 +154,7 @@ class IcedPoet:
                 continue
             assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
             iced = self.fridge[dep.name]
-            dist_meta.add_header(
-                "Requires-Dist", iced.poetry.package.to_dependency().to_pep_508()
-            )
+            dist_meta.add_header("Requires-Dist", iced.poetry.package.to_dependency().to_pep_508())
 
     def freeze_record(self, records_fh, dist_meta, md_path):
         hash_digest = get_sha256_digest(str(dist_meta).encode("utf8"))
@@ -176,9 +172,7 @@ class IcedPoet:
                 continue
             writer.writerow(row)
 
-        writer.writerow(
-            (md_path, f"sha256={hash_digest}", len(str(dist_meta).encode("utf8")))
-        )
+        writer.writerow((md_path, f"sha256={hash_digest}", len(str(dist_meta).encode("utf8"))))
         return output.getvalue()
 
     def freeze_wheel(self, wheel_path, dep_packages):
@@ -209,9 +203,7 @@ class IcedPoet:
                         sample = info
                         continue
                     info_fh = source_whl.open(info)
-                    frozen_whl.writestr(
-                        info, info_fh.read(), compress_type=zipfile.ZIP_DEFLATED
-                    )
+                    frozen_whl.writestr(info, info_fh.read(), compress_type=zipfile.ZIP_DEFLATED)
 
                 # finally add in our modified files
                 date_time = (2016, 1, 1, 0, 0, 0)
@@ -226,8 +218,6 @@ class IcedPoet:
 
                 record_info = zipfile.ZipInfo(record_path, date_time)
                 record_info.external_attr = sample.external_attr
-                frozen_whl.writestr(
-                    record_path, record_text, compress_type=zipfile.ZIP_DEFLATED
-                )
+                frozen_whl.writestr(record_path, record_text, compress_type=zipfile.ZIP_DEFLATED)
 
         shutil.move(temp_path, str(wheel_path))

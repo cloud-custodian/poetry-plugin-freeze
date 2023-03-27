@@ -32,6 +32,11 @@ ruff = "^0.0.254"
 [tool.poetry.plugins."poetry.application.plugin"]
 freeze-wheel = "poetry_plugin_freeze.app:FreezeApplicationPlugin"
 
+[tool.ruff]
+line-length = 100
+
+[tool.black]
+line-length = 100
 
 [build-system]
 requires = ["poetry-core"]

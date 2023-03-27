@@ -38,9 +38,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
         wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/RECORD").read()
     )
     md = parse_md(
-        wheel.open(
-            f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA"
-        ).read()
+        wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
     )
 
     assert md._headers == [
@@ -89,8 +87,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ),
         (
             "Requires-Dist",
-            'tomli (==2.0.1) ; python_version >= "3.10" and python_full_version <= '
-            '"3.11.0a6"',
+            'tomli (==2.0.1) ; python_version >= "3.10" and python_full_version <= ' '"3.11.0a6"',
         ),
         (
             "Requires-Dist",
@@ -121,8 +118,6 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ],
     ]
 
-    md_bytes = wheel.open(
-        f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA"
-    ).read()
+    md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
     assert len(md_bytes) == 1299
     assert get_sha256_digest(md_bytes) == "NzA252mOv6ck7zka4ZneS7TXiqDaan1ulWrNL44_JuE"
