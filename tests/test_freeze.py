@@ -55,7 +55,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
         (
             "Requires-Dist",
             'app-b (==0.1) ; python_version >= "3.8" and python_version < "4.0"',
-        ),        
+        ),
         (
             "Requires-Dist",
             'pytest (==7.2.2) ; python_version >= "3.10" and python_version < "4.0"',

@@ -145,7 +145,7 @@ class IcedPoet:
             dist_meta._headers.remove(("Requires-Dist", m))
 
         for idx, h in enumerate(dep_lines):
-            dist_meta._headers.insert(start_pos + idx, ('Requires-Dist', h))
+            dist_meta._headers.insert(start_pos + idx, ("Requires-Dist", h))
 
         return dist_meta
 
@@ -161,7 +161,8 @@ class IcedPoet:
             assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
             iced = self.fridge[dep.name]
             package_deps[dep.name] = DependencyPackage(
-                dependency=iced.poetry.package.to_dependency(), package=iced.poetry.package)
+                dependency=iced.poetry.package.to_dependency(), package=iced.poetry.package
+            )
             package_deps.update(iced.get_dep_packages())
         return package_deps
 
