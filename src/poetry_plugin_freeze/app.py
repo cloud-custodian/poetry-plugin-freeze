@@ -137,7 +137,6 @@ class IcedPoet:
         return lines
 
     def replace_deps(self, dist_meta, dep_lines):
-        frozen_headers = []
         start_pos = 0
         for m in dist_meta.get_all("Requires-Dist"):
             if not start_pos:

@@ -60,6 +60,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
             "Requires-Dist",
             'pytest (==7.2.2) ; python_version >= "3.10" and python_version < "4.0"',
         ),
+        ("Requires-Dist", 'ruff (==0.0.259) ; python_version >= "3.8" and python_version < "4.0"'),
         (
             "Requires-Dist",
             'attrs (==22.2.0) ; python_version >= "3.10" and python_version < "4.0"',
@@ -113,11 +114,11 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ["app_c-0.2.dist-info/RECORD", "", ""],
         [
             "app_c-0.2.dist-info/METADATA",
-            "sha256=2cmXauZcVzKGNaz-rVPs-Cd8cQycykbLgseKfE9Pjrc",
-            "1299",
+            "sha256=qDFKDZ9yblLDU9jZ3UoInesMV9uf9r30gw3zw6-JDa0",
+            "1384",
         ],
     ]
 
     md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
-    assert len(md_bytes) == 1299
-    assert get_sha256_digest(md_bytes) == "2cmXauZcVzKGNaz-rVPs-Cd8cQycykbLgseKfE9Pjrc"
+    assert len(md_bytes) == 1384
+    assert get_sha256_digest(md_bytes) == "qDFKDZ9yblLDU9jZ3UoInesMV9uf9r30gw3zw6-JDa0"
