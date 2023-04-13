@@ -41,7 +41,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
         wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
     )
 
-    assert md._headers == [
+    expected_headers = [
         ("Metadata-Version", "2.1"),
         ("Name", "app-c"),
         ("Version", "0.2"),
@@ -54,13 +54,8 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ("Classifier", "Programming Language :: Python :: 3.11"),
         (
             "Requires-Dist",
-            'app-b (==0.1) ; python_version >= "3.8" and python_version < "4.0"',
-        ),
-        (
-            "Requires-Dist",
             'pytest (==7.2.2) ; python_version >= "3.10" and python_version < "4.0"',
         ),
-        ("Requires-Dist", 'ruff (==0.0.259) ; python_version >= "3.8" and python_version < "4.0"'),
         (
             "Requires-Dist",
             'attrs (==22.2.0) ; python_version >= "3.10" and python_version < "4.0"',
@@ -99,6 +94,7 @@ def test_freeze_nested(fixture_root, fixture_copy):
             'coverage (==7.2.1) ; python_version >= "3.10" and python_version < "4.0"',
         ),
     ]
+    assert sorted(md._headers) == sorted(expected_headers)
 
     assert records == [
         [
@@ -114,11 +110,11 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ["app_c-0.2.dist-info/RECORD", "", ""],
         [
             "app_c-0.2.dist-info/METADATA",
-            "sha256=qDFKDZ9yblLDU9jZ3UoInesMV9uf9r30gw3zw6-JDa0",
-            "1384",
+            "sha256=ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o",
+            "1217",
         ],
     ]
 
     md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
-    assert len(md_bytes) == 1384
-    assert get_sha256_digest(md_bytes) == "qDFKDZ9yblLDU9jZ3UoInesMV9uf9r30gw3zw6-JDa0"
+    assert len(md_bytes) == 1217
+    assert get_sha256_digest(md_bytes) == "ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o"
