@@ -196,7 +196,7 @@ class IcedPoet:
             # freeze deps in metadata and update records
             md_text = source_whl.open(md_path).read().decode("utf8")
             dist_meta = Parser().parsestr(md_text)
-            deps = self.get_path_deps()
+            deps = self.get_path_deps(MAIN_GROUP)
             deps.update(dep_packages)
             dep_lines = self.get_frozen_deps(deps)
             self.replace_deps(dist_meta, dep_lines)
