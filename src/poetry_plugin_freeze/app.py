@@ -12,6 +12,7 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
+from poetry.core.version.markers import MarkerUnion, MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
 from poetry.core.masonry.metadata import Metadata
 from poetry.core.masonry.utils.helpers import distribution_name
@@ -129,7 +130,7 @@ class IcedPoet:
         lines = []
         for pkg_name, dep_package in dep_packages.items():
             require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
-            requirement = dep_package.dependency.to_pep_508(with_extras=False)
+            requirement = dep_package.dependency.to_pep_508(with_extras=True)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()
                 require_dist += f" ; {markers}"
@@ -157,12 +158,16 @@ class IcedPoet:
                 continue
             if dep.is_vcs() or dep.is_url():
                 continue
-            assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
-            iced = self.fridge[dep.name]
-            package_deps[dep.name] = DependencyPackage(
+            iced = IcedPoet(dep.full_path)
+            # Carry markers from the root package dependency through to the iced package
+            iced.poetry.package.marker = MultiMarker(
+                iced.poetry.package.python_marker,
+                MarkerUnion(*(SingleMarker("extra", extra) for extra in dep.in_extras)),
+            )
+            package_dep = DependencyPackage(
                 dependency=iced.poetry.package.to_dependency(), package=iced.poetry.package
             )
-            package_deps.update(iced.get_dep_packages())
+            package_deps[dep.name] = package_dep
         return package_deps
 
     def freeze_record(self, records_fh, dist_meta, md_path):
