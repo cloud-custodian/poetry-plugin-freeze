@@ -13,11 +13,11 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.version.markers import AnyMarker, SingleMarker
+from poetry.core.version.markers import MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
 from poetry.core.masonry.metadata import Metadata
 from poetry.core.masonry.utils.helpers import distribution_name
-from poetry.core.version.markers import union as marker_union, intersection as marker_intersection
+from poetry.core.version.markers import union as marker_union
 from poetry.factory import Factory
 from poetry.plugins.application_plugin import ApplicationPlugin
 
@@ -136,6 +136,7 @@ class IcedPoet:
         For each locked dependency, determine whether it came
         as a base requirement or part of one or more extras.
         """
+
         def _with_python_marker(requirements, root_package):
             """Augment requirements with the root package's python marker"""
             marked_requirements = []
@@ -180,17 +181,15 @@ class IcedPoet:
         from installed package to dependency.
         """
         dependency_sources = self.get_dependency_sources()
-        extra_markers = AnyMarker()
 
         # Record extra markers only if a dependency is not included
         # in the base requirement set.
+        new_marker = dependency.marker.without_extras()
         in_extras = dependency_sources[dependency.name] - {"base"}
         if in_extras:
             extra_markers = marker_union(*(SingleMarker("extra", extra) for extra in in_extras))
-        dependency.marker = marker_intersection(
-            dependency.marker.without_extras(),
-            extra_markers,
-        )
+            new_marker = MultiMarker(new_marker, extra_markers)
+        dependency.marker = new_marker
 
     def get_frozen_deps(self, dep_packages):
         lines = []
@@ -232,7 +231,7 @@ class IcedPoet:
             # Carry markers from the root package dependency through to the iced package
             self.compact_markers(dep)
             iced_dep = iced.poetry.package.to_dependency()
-            iced_dep.marker = marker_intersection(dep.marker, iced_dep.marker)
+            iced_dep.marker = MultiMarker(dep.marker, iced_dep.marker)
             package_dep = DependencyPackage(dependency=iced_dep, package=iced.poetry.package)
             package_deps[dep.name] = package_dep
         return package_deps
