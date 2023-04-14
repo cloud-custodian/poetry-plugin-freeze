@@ -1,7 +1,7 @@
 from base64 import urlsafe_b64encode
 import csv
 from email.parser import Parser
-from functools import cache
+from functools import lru_cache
 import hashlib
 from io import StringIO, TextIOWrapper
 from pathlib import Path
@@ -129,7 +129,7 @@ class IcedPoet:
         )
         return {p.package.name: p for p in dep_packages}
 
-    @cache
+    @lru_cache(maxsize=None)
     def get_dependency_sources(self):
         """Determine the root source of each locked dependency
 
