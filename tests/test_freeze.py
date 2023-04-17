@@ -9,6 +9,7 @@ def test_project_roots(fixture_root):
     assert list(project_roots(fixture_root)) == [
         fixture_root / "nested_packages",
         fixture_root / "nested_packages" / "others" / "app_c",
+        fixture_root / "nested_packages" / "others" / "app_with_extras",
     ]
 
 
@@ -118,3 +119,43 @@ def test_freeze_nested(fixture_root, fixture_copy):
     md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
     assert len(md_bytes) == 1217
     assert get_sha256_digest(md_bytes) == "ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o"
+
+
+def test_freeze_extras(fixture_root, fixture_copy):
+    nested_packages = fixture_copy(fixture_root / "nested_packages")
+
+    iced_pkg = IcedPoet(nested_packages / "others" / "app_with_extras")
+    iced_pkg.set_fridge({iced_pkg.name: iced_pkg})
+    wheels = iced_pkg.freeze()
+    assert len(wheels) == 1
+
+    wheel = zipfile.ZipFile(wheels[0])
+
+    md = parse_md(
+        wheel.open(f"{iced_pkg.distro_name}-{iced_pkg.version}.dist-info/METADATA").read()
+    )
+
+    md_requirements = {}
+    for header_type, header_value in md._headers:
+        if header_type != "Requires-Dist":
+            continue
+        pkg_name, requirements = header_value.split(maxsplit=1)
+        md_requirements[pkg_name] = requirements
+
+    # ruff is not installed as an extra
+    assert "extra" not in md_requirements["ruff"]
+
+    # app-c is installed as part of the "bells" extra
+    assert 'extra == "bells"' in md_requirements["app-c"]
+
+    # tomli is an optional/extra dependency of coverage,
+    # which can be pulled in by one or more extra selections.
+    # (Note that the "toml" extra defined inside coverage is
+    # explicitly excluded from the frozen requirement line.)
+    assert all(
+        [
+            'extra == "bells"' in md_requirements["tomli"],
+            'extra == "whistles"' in md_requirements["tomli"],
+            'extra == "toml"' not in md_requirements["tomli"],
+        ]
+    )
