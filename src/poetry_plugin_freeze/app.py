@@ -150,10 +150,15 @@ class IcedPoet:
         root_package = self.poetry.package
         locked_packages_by_name = {p.name: [p] for p in repository.packages}
         dependency_sources = {}
+        base_requires = [
+            dep
+            for dep in root_package.requires
+            if not dep.is_optional() or set(dep.in_extras) <= root_package.features
+        ]
 
         # Identify nested dependencies that don't require extra selections.
         base_nested_dependencies = walk_dependencies(
-            _with_python_marker(root_package.all_requires, root_package),
+            _with_python_marker(base_requires, root_package),
             packages_by_name=locked_packages_by_name,
             root_package_name=root_package.name,
         )
@@ -180,13 +185,14 @@ class IcedPoet:
         extra dependency markers which are lost in the conversion
         from installed package to dependency.
         """
-        dependency_sources = self.get_dependency_sources()
+        dep_sources = self.get_dependency_sources().get(dependency.name, set())
 
         # Record extra markers only if a dependency is not included
         # in the base requirement set.
         new_marker = dependency.marker.without_extras()
-        in_extras = dependency_sources[dependency.name] - {"base"}
-        if in_extras:
+        in_base = "base" in dep_sources
+        in_extras = dep_sources - {"base"}
+        if in_extras and not in_base:
             extra_markers = marker_union(*(SingleMarker("extra", extra) for extra in in_extras))
             new_marker = MultiMarker(new_marker, extra_markers)
         dependency.marker = new_marker
@@ -198,7 +204,9 @@ class IcedPoet:
             self.compact_markers(dep_package.dependency)
             require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
             # Freeze extra markers for dependencies which were pulled in via extras
-            freeze_extras = dependency_sources[dep_package.dependency.name] - {"base"}
+            # Don't freeze markers if a dependency is also part of the base
+            # dependency tree.
+            freeze_extras = "base" not in dependency_sources.get(dep_package.dependency.name, set())
             requirement = dep_package.dependency.to_pep_508(with_extras=freeze_extras)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()

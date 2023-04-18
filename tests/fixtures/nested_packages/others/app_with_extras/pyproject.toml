@@ -8,14 +8,18 @@ readme = "README.md"
 packages = [{include = "app_with_extras"}]
 
 [tool.poetry.dependencies]
+# Base dependencies
 python = "^3.10"
-app-c = {path = "../app_c", optional = true, develop = true}
-coverage = {version = "*", optional = true, extras = ["toml"]}
 ruff = "^0.0.259"
+
+# Optional dependencies
+app-c = {path = "../app_c", optional = true, develop = true}
+app-b = {path = "../..", optional = true}
+coverage = {version = "*", optional = true, extras = ["toml"]}
 
 [tool.poetry.extras]
 bells = ["app-c"]
-whistles = ["coverage"]
+whistles = ["coverage", "app-b"]
 
 [build-system]
 requires = ["poetry-core"]

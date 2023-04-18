@@ -148,6 +148,12 @@ def test_freeze_extras(fixture_root, fixture_copy):
     # app-c is installed as part of the "bells" extra
     assert 'extra == "bells"' in md_requirements["app-c"]
 
+    # ruff shows up in both the base dependency tree
+    # and as part of extras. Its inclusion in the base
+    # set of dependencies should prevent it from carrying
+    # an extra marker.
+    assert "extra" not in md_requirements["ruff"]
+
     # tomli is an optional/extra dependency of coverage,
     # which can be pulled in by one or more extra selections.
     # (Note that the "toml" extra defined inside coverage is
