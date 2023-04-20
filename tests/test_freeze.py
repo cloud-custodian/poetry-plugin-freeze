@@ -142,9 +142,6 @@ def test_freeze_extras(fixture_root, fixture_copy):
         pkg_name, requirements = header_value.split(maxsplit=1)
         md_requirements[pkg_name] = requirements
 
-    # ruff is not installed as an extra
-    assert "extra" not in md_requirements["ruff"]
-
     # app-c is installed as part of the "bells" extra
     assert 'extra == "bells"' in md_requirements["app-c"]
 
@@ -155,9 +152,9 @@ def test_freeze_extras(fixture_root, fixture_copy):
     assert "extra" not in md_requirements["ruff"]
 
     # tomli is an optional/extra dependency of coverage,
-    # which can be pulled in by one or more extra selections.
-    # (Note that the "toml" extra defined inside coverage is
-    # explicitly excluded from the frozen requirement line.)
+    # which can be pulled in by one or more top-level extra selections.
+    # The frozen requirement should only include markers for
+    # extras defined in the root package.
     assert all(
         [
             'extra == "bells"' in md_requirements["tomli"],
