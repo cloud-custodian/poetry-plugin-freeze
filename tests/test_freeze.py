@@ -6,7 +6,7 @@ from poetry_plugin_freeze.app import IcedPoet, project_roots, get_sha256_digest
 
 
 def test_project_roots(fixture_root):
-    assert list(project_roots(fixture_root)) == [
+    assert sorted(project_roots(fixture_root)) == [
         fixture_root / "nested_packages",
         fixture_root / "nested_packages" / "others" / "app_c",
         fixture_root / "nested_packages" / "others" / "app_with_extras",
