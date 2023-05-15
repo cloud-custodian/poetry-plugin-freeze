@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "app-with-extras"
+version = "0.1.0"
+description = "App with optional/extra dependencies"
+authors = ["A. LaCarte"]
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{include = "app_with_extras"}]
+
+[tool.poetry.dependencies]
+# Base dependencies
+python = "^3.10"
+ruff = "^0.0.259"
+
+# Optional dependencies
+app-c = {path = "../app_c", optional = true, develop = true}
+app-b = {path = "../..", optional = true}
+coverage = {version = "*", optional = true, extras = ["toml"]}
+
+[tool.poetry.extras]
+bells = ["app-c"]
+whistles = ["coverage", "app-b"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,6 +1,7 @@
 from base64 import urlsafe_b64encode
 import csv
 from email.parser import Parser
+from functools import lru_cache
 import hashlib
 from io import StringIO, TextIOWrapper
 from pathlib import Path
@@ -12,13 +13,15 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
+from poetry.core.version.markers import MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
 from poetry.core.masonry.metadata import Metadata
 from poetry.core.masonry.utils.helpers import distribution_name
+from poetry.core.version.markers import union as marker_union
 from poetry.factory import Factory
 from poetry.plugins.application_plugin import ApplicationPlugin
 
-from poetry_plugin_export.walker import get_project_dependency_packages
+from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
 
 
 class FreezeCommand(Command):
@@ -121,15 +124,90 @@ class IcedPoet:
                 project_requires=root_package.all_requires,
                 root_package_name=root_package.name,
                 project_python_marker=root_package.python_marker,
+                extras=root_package.extras,
             )
         )
         return {p.package.name: p for p in dep_packages}
 
+    @lru_cache(maxsize=None)
+    def get_dependency_sources(self):
+        """Determine the root source of each locked dependency
+
+        For each locked dependency, determine whether it came
+        as a base requirement or part of one or more extras.
+        """
+
+        def _with_python_marker(requirements, root_package):
+            """Augment requirements with the root package's python marker"""
+            marked_requirements = []
+            for require in requirements:
+                require = require.clone()
+                require.marker = require.marker.intersect(root_package.python_marker)
+                marked_requirements.append(require)
+            return marked_requirements
+
+        repository = self.poetry.locker.locked_repository()
+        root_package = self.poetry.package
+        locked_packages_by_name = {p.name: [p] for p in repository.packages}
+        dependency_sources = {}
+        base_requires = [
+            dep
+            for dep in root_package.requires
+            if not dep.is_optional() or set(dep.in_extras) <= root_package.features
+        ]
+
+        # Identify nested dependencies that don't require extra selections.
+        base_nested_dependencies = walk_dependencies(
+            _with_python_marker(base_requires, root_package),
+            packages_by_name=locked_packages_by_name,
+            root_package_name=root_package.name,
+        )
+        for d in base_nested_dependencies:
+            dependency_sources.setdefault(d.name, set()).add("base")
+
+        # Identify nested dependencies that come from one or more extra
+        # selections.
+        for extra in root_package.extras:
+            extra_nested_dependencies = walk_dependencies(
+                _with_python_marker(root_package.extras[extra], root_package),
+                packages_by_name=locked_packages_by_name,
+                root_package_name=root_package.name,
+            )
+            for d in extra_nested_dependencies:
+                dependency_sources.setdefault(d.name, set()).add(extra)
+        return dependency_sources
+
+    def compact_markers(self, dependency):
+        """Update a dependency to consolidate its markers.
+
+        This avoids duplication when there are multiple markers
+        (for sets of python versions, for example). It also records
+        extra dependency markers which are lost in the conversion
+        from installed package to dependency.
+        """
+        dep_sources = self.get_dependency_sources().get(dependency.name, set())
+
+        # Record extra markers only if a dependency is not included
+        # in the base requirement set.
+        new_marker = dependency.marker.without_extras()
+        in_base = "base" in dep_sources
+        in_extras = dep_sources - {"base"}
+        if in_extras and not in_base:
+            extra_markers = marker_union(*(SingleMarker("extra", extra) for extra in in_extras))
+            new_marker = MultiMarker(new_marker, extra_markers)
+        dependency.marker = new_marker
+
     def get_frozen_deps(self, dep_packages):
         lines = []
+        dependency_sources = self.get_dependency_sources()
         for pkg_name, dep_package in dep_packages.items():
+            self.compact_markers(dep_package.dependency)
             require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
-            requirement = dep_package.dependency.to_pep_508(with_extras=False)
+            # Freeze extra markers for dependencies which were pulled in via extras
+            # Don't freeze markers if a dependency is also part of the base
+            # dependency tree.
+            freeze_extras = "base" not in dependency_sources.get(dep_package.dependency.name, set())
+            requirement = dep_package.dependency.to_pep_508(with_extras=freeze_extras)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()
                 require_dist += f" ; {markers}"
@@ -157,12 +235,13 @@ class IcedPoet:
                 continue
             if dep.is_vcs() or dep.is_url():
                 continue
-            assert dep.name in self.fridge, f"Unknown path dependency {dep.name}"
-            iced = self.fridge[dep.name]
-            package_deps[dep.name] = DependencyPackage(
-                dependency=iced.poetry.package.to_dependency(), package=iced.poetry.package
-            )
-            package_deps.update(iced.get_dep_packages())
+            iced = IcedPoet(dep.full_path)
+            # Carry markers from the root package dependency through to the iced package
+            self.compact_markers(dep)
+            iced_dep = iced.poetry.package.to_dependency()
+            iced_dep.marker = MultiMarker(dep.marker, iced_dep.marker)
+            package_dep = DependencyPackage(dependency=iced_dep, package=iced.poetry.package)
+            package_deps[dep.name] = package_dep
         return package_deps
 
     def freeze_record(self, records_fh, dist_meta, md_path):
@@ -196,7 +275,7 @@ class IcedPoet:
             # freeze deps in metadata and update records
             md_text = source_whl.open(md_path).read().decode("utf8")
             dist_meta = Parser().parsestr(md_text)
-            deps = self.get_path_deps()
+            deps = self.get_path_deps(MAIN_GROUP)
             deps.update(dep_packages)
             dep_lines = self.get_frozen_deps(deps)
             self.replace_deps(dist_meta, dep_lines)

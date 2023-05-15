@@ -18,6 +18,34 @@ A post build / pre publish command to allow for creating wheels with frozen depe
 Note we can't use poetry to publish because the frozen wheel because it uses metadata from pyproject.toml instead
 of frozen wheel metadata.
 
+### Optional Dependencies
+
+Frozen wheel metadata will contain [Provides-Extra](https://packaging.python.org/en/latest/specifications/core-metadata/#provides-extra-multiple-use) entries for any [extra / optional dependencies](https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#dependencies-optional-dependencies). Frozen [Requires-Dist](https://packaging.python.org/en/latest/specifications/core-metadata/#core-metadata-requires-dist) lines will specify `extra` names _for packages that appear only in the optional/extra dependency graph.
+
+If a package appears as both a nested "main" dependency and also as an "extra" dependency, its `Requires-Dist` entry in the frozen wheel _will not_ specify an extra name.
+
+To define this behavior in relation to poetry's [export plugin](https://github.com/python-poetry/poetry-plugin-export/), these two flows should result in the same installed package set:
+
+```console
+# Export Flow
+poetry export -f requirements.txt > requirements.txt && pip install -r requirements.txt
+
+# Freeze-wheel Flow
+poetry build && poetry freeze-wheel && pip install my_frozen_wheel
+```
+
+And introducing extras:
+
+```console
+# Export Flow
+poetry export --extras gcp -f requirements.txt && pip install -r requirements.txt
+
+# Freeze-wheel Flow
+poetry build && poetry freeze-wheel && pip install my_frozen_wheel[gcp]
+```
+
+The difference is in when to choose which extras to install - `export` does that at freeze time. `freeze-wheel` embeds the extra _context_ at freeze time, but defers the actual extra selection until install time.
+
 ## Usage
 
 ```shell
@@ -42,12 +70,3 @@ twine upload dist/*.whl
 To support mono repos consisting of multiple libraries/applications, when creating a frozen wheel, dev dependencies specified by path can be optionally substituted out for references to their release artifact versions.
 
 This assumes automation to run build and publish across the various subpackages, ie typically via make or just.
-
-
-
-
-
-
-
-
-
