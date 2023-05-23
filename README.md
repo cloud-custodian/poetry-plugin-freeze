@@ -67,6 +67,6 @@ twine upload dist/*.whl
 
 ## Mono-Repo Support
 
-To support mono repos consisting of multiple libraries/applications, when creating a frozen wheel, dev dependencies specified by path can be optionally substituted out for references to their release artifact versions.
+To support mono repos consisting of multiple libraries/applications, when creating a frozen wheel, main group dependencies specified by path can be optionally substituted out for references to their release artifact versions.
 
 This assumes automation to run build and publish across the various subpackages, ie typically via make or just.
