@@ -47,10 +47,14 @@ def test_freeze_command_options(fixture_root, monkeypatch):
 
     cmd = app.find("freeze-wheel")
     tester = CommandTester(cmd)
-    tester.execute("--exclude boto3 -e attrs --wheel-dir mydir")
 
+    tester.execute("--exclude boto3 -e attrs --wheel-dir mydir")
     assert poet_options["wheel_dir"] == "mydir"
     assert poet_options["exclude_packages"] == ["boto3", "attrs"]
+
+    tester.execute()
+    assert poet_options["wheel_dir"] == "dist"
+    assert poet_options["exclude_packages"] == []
 
 
 def test_freeze_nested(fixture_root, fixture_copy):

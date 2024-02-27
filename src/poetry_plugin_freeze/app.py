@@ -81,7 +81,7 @@ def get_sha256_digest(content: bytes):
 class IcedPoet:
     factory = Factory()
 
-    def __init__(self, project_dir, wheel_dir="dist", exclude_packages=None):
+    def __init__(self, project_dir, wheel_dir="dist", exclude_packages=()):
         self.project_dir = project_dir
         self.wheel_dir = wheel_dir
         self.poetry = self.factory.create_poetry(project_dir)
@@ -219,7 +219,7 @@ class IcedPoet:
             freeze_extras = "base" not in dependency_sources.get(dep_package.dependency.name, set())
             requirement = dep_package.dependency.to_pep_508(with_extras=freeze_extras)
 
-            if exclude_packages and dep_package.package.name in exclude_packages:
+            if dep_package.package.name in exclude_packages:
                 lines.append(requirement)
                 continue
 
