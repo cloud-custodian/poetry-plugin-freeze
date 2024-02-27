@@ -27,7 +27,17 @@ from poetry_plugin_export.walker import get_project_dependency_packages, walk_de
 class FreezeCommand(Command):
     name = "freeze-wheel"
 
-    options = [option("wheel-dir", None, "Sub-directory containing wheels")]
+    options = [
+        option("wheel-dir", None, "Sub-directory containing wheels", default="dist", flag=False),
+        option(
+            "exclude",
+            short_name="-e",
+            description="A package name to exclude from freezing",
+            flag=False,
+            value_required=False,
+            multiple=True,
+        ),
+    ]
 
     def handle(self) -> int:
         self.line("freezing wheels")
@@ -35,7 +45,7 @@ class FreezeCommand(Command):
 
         fridge = {}
         for project_root in project_roots(root_dir):
-            iced = IcedPoet(project_root)
+            iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
             iced.check()
             fridge[iced.name] = iced
 
@@ -71,12 +81,13 @@ def get_sha256_digest(content: bytes):
 class IcedPoet:
     factory = Factory()
 
-    def __init__(self, project_dir, wheel_dir="dist"):
+    def __init__(self, project_dir, wheel_dir="dist", exclude_packages=()):
         self.project_dir = project_dir
         self.wheel_dir = wheel_dir
         self.poetry = self.factory.create_poetry(project_dir)
         self.meta = Metadata.from_package(self.poetry.package)
         self.fridge = None
+        self.exclude_packages = exclude_packages
 
     def set_fridge(self, fridge):
         self.fridge = fridge
@@ -197,17 +208,22 @@ class IcedPoet:
             new_marker = MultiMarker(new_marker, extra_markers)
         dependency.marker = new_marker
 
-    def get_frozen_deps(self, dep_packages):
+    def get_frozen_deps(self, dep_packages, exclude_packages=None):
         lines = []
         dependency_sources = self.get_dependency_sources()
         for pkg_name, dep_package in dep_packages.items():
             self.compact_markers(dep_package.dependency)
-            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
             # Freeze extra markers for dependencies which were pulled in via extras
             # Don't freeze markers if a dependency is also part of the base
             # dependency tree.
             freeze_extras = "base" not in dependency_sources.get(dep_package.dependency.name, set())
             requirement = dep_package.dependency.to_pep_508(with_extras=freeze_extras)
+
+            if dep_package.package.name in exclude_packages:
+                lines.append(requirement)
+                continue
+
+            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()
                 require_dist += f" ; {markers}"
@@ -277,7 +293,7 @@ class IcedPoet:
             dist_meta = Parser().parsestr(md_text)
             deps = self.get_path_deps(MAIN_GROUP)
             deps.update(dep_packages)
-            dep_lines = self.get_frozen_deps(deps)
+            dep_lines = self.get_frozen_deps(deps, self.exclude_packages)
             self.replace_deps(dist_meta, dep_lines)
 
             with source_whl.open(record_path) as record_fh:

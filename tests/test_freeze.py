@@ -1,8 +1,13 @@
 import csv
+import zipfile
 from email.parser import Parser
 from io import StringIO
-import zipfile
-from poetry_plugin_freeze.app import IcedPoet, project_roots, get_sha256_digest
+
+from cleo.io.null_io import NullIO
+from cleo.testers.command_tester import CommandTester
+from poetry.console.application import Application
+from poetry.factory import Factory
+from poetry_plugin_freeze.app import IcedPoet, get_sha256_digest, project_roots
 
 
 def test_project_roots(fixture_root):
@@ -19,6 +24,37 @@ def parse_md(md_text: bytes):
 
 def parse_record(record_text: bytes):
     return list(csv.reader(StringIO(record_text.decode("utf8"))))
+
+
+def test_freeze_command_options(fixture_root, monkeypatch):
+    poet_options = {}
+
+    def mock_check(self):
+        poet_options["wheel_dir"] = self.wheel_dir
+        poet_options["exclude_packages"] = self.exclude_packages
+        return True
+
+    def mock_freeze(self):
+        return []
+
+    monkeypatch.setattr(IcedPoet, "check", mock_check)
+    monkeypatch.setattr(IcedPoet, "freeze", mock_freeze)
+
+    poetry = Factory().create_poetry(fixture_root)
+    app = Application()
+    app._poetry = poetry
+    app._load_plugins(NullIO())
+
+    cmd = app.find("freeze-wheel")
+    tester = CommandTester(cmd)
+
+    tester.execute("--exclude boto3 -e attrs --wheel-dir mydir")
+    assert poet_options["wheel_dir"] == "mydir"
+    assert poet_options["exclude_packages"] == ["boto3", "attrs"]
+
+    tester.execute()
+    assert poet_options["wheel_dir"] == "dist"
+    assert poet_options["exclude_packages"] == []
 
 
 def test_freeze_nested(fixture_root, fixture_copy):
@@ -162,3 +198,40 @@ def test_freeze_extras(fixture_root, fixture_copy):
             'extra == "toml"' not in md_requirements["tomli"],
         ]
     )
+
+
+def test_freeze_exclude_packages(fixture_root, fixture_copy):
+    package = fixture_copy(fixture_root / "nested_packages")
+
+    iced_pkg = IcedPoet(package, exclude_packages=["pytest", "ruff"])
+    iced_pkg.set_fridge({iced_pkg.name: iced_pkg})
+    wheels = iced_pkg.freeze()
+    assert len(wheels) == 1
+
+    wheel = zipfile.ZipFile(wheels[0])
+
+    md = parse_md(
+        wheel.open(f"{iced_pkg.distro_name}-{iced_pkg.version}.dist-info/METADATA").read()
+    )
+
+    md_requirements = {}
+    for header_type, header_value in md._headers:
+        if header_type != "Requires-Dist":
+            continue
+        pkg_name, requirements = header_value.split(maxsplit=1)
+        md_requirements[pkg_name] = requirements
+
+    for package, expected_version_constraint in [
+        # Excluded packages should not have frozen versions
+        ("pytest", "(>=7.1,<8.0)"),
+        ("ruff", "(>=0.0.259,<0.0.260)"),
+        # ...but other packages should
+        ("attrs", "(==22.2.0)"),
+        ("colorama", "(==0.4.6)"),
+        ("exceptiongroup", "(==1.1.0)"),
+        ("iniconfig", "(==2.0.0)"),
+        ("packaging", "(==23.0)"),
+        ("pluggy", "(==1.0.0)"),
+        ("tomli", "(==2.0.1)"),
+    ]:
+        assert expected_version_constraint in md_requirements[package]
