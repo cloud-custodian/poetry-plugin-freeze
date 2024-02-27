@@ -58,7 +58,10 @@ poetry build
 # add freeze step
 poetry freeze-wheel
 
-# Note we can't use poetry to publish because it uses metadata from pyproject.toml instead 
+# avoid freezing specific packages
+poetry freeze-wheel --exclude boto3 -e attrs
+
+# Note we can't use poetry to publish because it uses metadata from pyproject.toml instead
 # of frozen wheel metadata.
 
 # publish per normal

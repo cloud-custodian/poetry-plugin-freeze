@@ -31,6 +31,7 @@ class FreezeCommand(Command):
         option("wheel-dir", None, "Sub-directory containing wheels", flag=False),
         option(
             "exclude",
+            short_name="-e",
             description="A package name to exclude from freezing",
             flag=False,
             value_required=False,
