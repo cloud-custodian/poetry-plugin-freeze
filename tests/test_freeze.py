@@ -162,3 +162,40 @@ def test_freeze_extras(fixture_root, fixture_copy):
             'extra == "toml"' not in md_requirements["tomli"],
         ]
     )
+
+
+def test_freeze_exclude_packages(fixture_root, fixture_copy):
+    package = fixture_copy(fixture_root / "nested_packages")
+
+    iced_pkg = IcedPoet(package, exclude_packages=["pytest", "ruff"])
+    iced_pkg.set_fridge({iced_pkg.name: iced_pkg})
+    wheels = iced_pkg.freeze()
+    assert len(wheels) == 1
+
+    wheel = zipfile.ZipFile(wheels[0])
+
+    md = parse_md(
+        wheel.open(f"{iced_pkg.distro_name}-{iced_pkg.version}.dist-info/METADATA").read()
+    )
+
+    md_requirements = {}
+    for header_type, header_value in md._headers:
+        if header_type != "Requires-Dist":
+            continue
+        pkg_name, requirements = header_value.split(maxsplit=1)
+        md_requirements[pkg_name] = requirements
+
+    for package, expected_version_constraint in [
+        # Excluded packages should not have frozen versions
+        ("pytest", "(>=7.1,<8.0)"),
+        ("ruff", "(>=0.0.259,<0.0.260)"),
+        # ...but other packages should
+        ("attrs", "(==22.2.0)"),
+        ("colorama", "(==0.4.6)"),
+        ("exceptiongroup", "(==1.1.0)"),
+        ("iniconfig", "(==2.0.0)"),
+        ("packaging", "(==23.0)"),
+        ("pluggy", "(==1.0.0)"),
+        ("tomli", "(==2.0.1)"),
+    ]:
+        assert expected_version_constraint in md_requirements[package]
