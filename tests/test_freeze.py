@@ -1,8 +1,13 @@
 import csv
+import zipfile
 from email.parser import Parser
 from io import StringIO
-import zipfile
-from poetry_plugin_freeze.app import IcedPoet, project_roots, get_sha256_digest
+
+from cleo.io.null_io import NullIO
+from cleo.testers.command_tester import CommandTester
+from poetry.console.application import Application
+from poetry.factory import Factory
+from poetry_plugin_freeze.app import IcedPoet, get_sha256_digest, project_roots
 
 
 def test_project_roots(fixture_root):
@@ -19,6 +24,33 @@ def parse_md(md_text: bytes):
 
 def parse_record(record_text: bytes):
     return list(csv.reader(StringIO(record_text.decode("utf8"))))
+
+
+def test_freeze_command_options(fixture_root, monkeypatch):
+    poet_options = {}
+
+    def mock_check(self):
+        poet_options["wheel_dir"] = self.wheel_dir
+        poet_options["exclude_packages"] = self.exclude_packages
+        return True
+
+    def mock_freeze(self):
+        return []
+
+    monkeypatch.setattr(IcedPoet, "check", mock_check)
+    monkeypatch.setattr(IcedPoet, "freeze", mock_freeze)
+
+    poetry = Factory().create_poetry(fixture_root)
+    app = Application()
+    app._poetry = poetry
+    app._load_plugins(NullIO())
+
+    cmd = app.find("freeze-wheel")
+    tester = CommandTester(cmd)
+    tester.execute("--exclude boto3 -e attrs --wheel-dir mydir")
+
+    assert poet_options["wheel_dir"] == "mydir"
+    assert poet_options["exclude_packages"] == ["boto3", "attrs"]
 
 
 def test_freeze_nested(fixture_root, fixture_copy):

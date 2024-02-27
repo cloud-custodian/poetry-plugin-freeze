@@ -28,7 +28,7 @@ class FreezeCommand(Command):
     name = "freeze-wheel"
 
     options = [
-        option("wheel-dir", None, "Sub-directory containing wheels", flag=False),
+        option("wheel-dir", None, "Sub-directory containing wheels", default="dist", flag=False),
         option(
             "exclude",
             short_name="-e",
