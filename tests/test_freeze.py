@@ -15,6 +15,7 @@ def test_project_roots(fixture_root):
     assert sorted(project_roots(fixture_root)) == [
         fixture_root / "nested_packages",
         fixture_root / "nested_packages" / "others" / "app_c",
+        fixture_root / "nested_packages" / "others" / "app_no_deps",
         fixture_root / "nested_packages" / "others" / "app_with_extras",
         fixture_root / "non_poetry_package",
     ]
@@ -166,6 +167,67 @@ def test_freeze_nested(fixture_root, fixture_copy):
     md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
     assert len(md_bytes) == 1217
     assert get_sha256_digest(md_bytes) == "ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o"
+
+
+def test_freeze_no_deps(fixture_root, fixture_copy):
+    package = fixture_copy(fixture_root / "nested_packages")
+    sub_package = fixture_copy(fixture_root / "nested_packages" / "others" / "app_no_deps")
+
+    iced_pkg = IcedPoet(package)
+    iced_sub = IcedPoet(sub_package)
+    fridge = {iced_pkg.name: iced_pkg, iced_sub.name: iced_sub}
+    iced_sub.set_fridge(fridge)
+
+    wheels = iced_sub.freeze()
+    assert len(wheels) == 1
+
+    wheel = zipfile.ZipFile(wheels[0])
+
+    records = parse_record(
+        wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/RECORD").read()
+    )
+    md = parse_md(
+        wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
+    )
+
+    expected_headers = [
+        ("Metadata-Version", "2.1"),
+        ("Name", "app_no_deps"),
+        ("Version", "0.2"),
+        ("Summary", "lorem ipsum"),
+        ("License", "Apache-2.0"),
+        ("Author", "SideCars"),
+        ("Requires-Python", ">=3.10,<4.0"),
+        ("Classifier", "License :: OSI Approved :: Apache Software License"),
+        ("Classifier", "Programming Language :: Python :: 3"),
+        ("Classifier", "Programming Language :: Python :: 3.10"),
+        ("Classifier", "Programming Language :: Python :: 3.11"),
+        ("Classifier", "Programming Language :: Python :: 3.12"),
+    ]
+    assert sorted(md._headers) == sorted(expected_headers)
+
+    assert records == [
+        [
+            "app_no_deps/__init__.py",
+            "sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU",
+            "0",
+        ],
+        [
+            "app_no_deps-0.2.dist-info/WHEEL",
+            "sha256=sP946D7jFCHeNz5Iq4fL4Lu-PrWrFsgfLXbbkciIZwg",
+            "88",
+        ],
+        ["app_no_deps-0.2.dist-info/RECORD", "", ""],
+        [
+            "app_no_deps-0.2.dist-info/METADATA",
+            "sha256=VX5SQgKuWZ04guxl1ZXZAOsK49nxKioLba_W4k0SzXE",
+            "405",
+        ],
+    ]
+
+    md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
+    assert len(md_bytes) == 405
+    assert get_sha256_digest(md_bytes) == "VX5SQgKuWZ04guxl1ZXZAOsK49nxKioLba_W4k0SzXE"
 
 
 def test_freeze_extras(fixture_root, fixture_copy):
