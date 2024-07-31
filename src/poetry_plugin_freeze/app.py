@@ -223,7 +223,10 @@ class IcedPoet:
                 lines.append(requirement)
                 continue
 
-            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
+            if dep_package.package.source_type != "directory":
+                require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
+            else:
+                require_dist = "%s @ file://%s" % (pkg_name, dep_package.package.source_url)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()
                 require_dist += f" ; {markers}"
