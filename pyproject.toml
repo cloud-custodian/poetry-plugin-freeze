@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "poetry-plugin-freeze"
+name = "poetry-plugin-petrify"
 version = "1.0.6"
 description = "Poetry plugin to freeze a wheel's dependencies per lock file"
 license = "Apache-2.0"
-authors = ["Kapil Thangavelu <kapilt@gmail.com>"]
+authors = ["Kasper Primdal Lauritzen <git@kplauritzen.dk>","Kapil Thangavelu <kapilt@gmail.com>"]
 readme = "README.md"
-homepage = "https://github.com/cloud-custodian/poetry-plugin-freeze"
+homepage = "https://github.com/KPLauritzen/poetry-plugin-petrify"
 
 packages = [
   { include = "poetry_plugin_freeze", from = "src" }
