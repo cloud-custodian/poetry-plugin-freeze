@@ -7,7 +7,7 @@ from cleo.io.null_io import NullIO
 from cleo.testers.command_tester import CommandTester
 from poetry.console.application import Application
 from poetry.factory import Factory
-from poetry_plugin_freeze.app import IcedPoet, get_sha256_digest, project_roots
+from poetry_plugin_petrify.app import IcedPoet, get_sha256_digest, project_roots
 
 
 def test_project_roots(fixture_root):
@@ -45,7 +45,7 @@ def test_freeze_command_options(fixture_root, monkeypatch):
     app._poetry = poetry
     app._load_plugins(NullIO())
 
-    cmd = app.find("freeze-wheel")
+    cmd = app.find("petrify")
     tester = CommandTester(cmd)
 
     tester.execute("--exclude boto3 -e attrs --wheel-dir mydir")

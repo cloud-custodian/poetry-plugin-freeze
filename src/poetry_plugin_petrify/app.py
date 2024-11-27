@@ -24,15 +24,15 @@ from poetry.plugins.application_plugin import ApplicationPlugin
 from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
 
 
-class FreezeCommand(Command):
-    name = "freeze-wheel"
+class PetrifyCommand(Command):
+    name = "petrify"
 
     options = [
         option("wheel-dir", None, "Sub-directory containing wheels", default="dist", flag=False),
         option(
             "exclude",
             short_name="-e",
-            description="A package name to exclude from freezing",
+            description="A package name to exclude from petrifying",
             flag=False,
             value_required=False,
             multiple=True,
@@ -40,7 +40,7 @@ class FreezeCommand(Command):
     ]
 
     def handle(self) -> int:
-        self.line("freezing wheels")
+        self.line("petrifying wheels")
         root_dir = self._io and self._io.input.option("directory") or Path.cwd()
 
         fridge = {}
@@ -58,12 +58,12 @@ class FreezeCommand(Command):
 
 
 def factory():
-    return FreezeCommand()
+    return PetrifyCommand()
 
 
-class FreezeApplicationPlugin(ApplicationPlugin):
+class PetrifyApplicationPlugin(ApplicationPlugin):
     def activate(self, application):
-        application.command_loader.register_factory("freeze-wheel", factory)
+        application.command_loader.register_factory("petrify", factory)
 
 
 def project_roots(root):
