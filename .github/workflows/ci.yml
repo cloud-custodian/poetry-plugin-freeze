@@ -36,7 +36,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry rust-just
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -45,13 +45,7 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        run: poetry install
+        run: just install
 
-      - name: Coverage run pytest
-        run: poetry run coverage run --source poetry_plugin_freeze -m pytest tests
-
-      - name: Coverage Generate XML
-        run: |
-          poetry run coverage xml && \
-          bash <(curl -s https://codecov.io/bash) -Z \
-          -f coverage.xml
+      - name: Test
+        run: just test
