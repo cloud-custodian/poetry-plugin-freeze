@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "poetry-plugin-petrify"
-version = "1.0.6"
-description = "Poetry plugin to freeze a wheel's dependencies per lock file"
+version = "1.0.7"
+description = "Poetry plugin to petrify a wheel's dependencies per lock file"
 license = "Apache-2.0"
 authors = ["Kasper Primdal Lauritzen <git@kplauritzen.dk>","Kapil Thangavelu <kapilt@gmail.com>"]
 readme = "README.md"
