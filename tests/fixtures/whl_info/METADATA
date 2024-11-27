@@ -68,4 +68,3 @@ the functions are deployed to.
 Periodic execution mode also requires cloudscheduler api be enabled on
 a project. Cloudscheduler usage also requires an app engine instance
 in the same region as the function deployment.
-

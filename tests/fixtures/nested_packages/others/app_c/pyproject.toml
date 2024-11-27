@@ -18,4 +18,3 @@ app_b = {path = "../..", develop = true}
 [build-system]
 requires = ["poetry>=0.12", "setuptools"]
 build-backend = "poetry.masonry.api"
-

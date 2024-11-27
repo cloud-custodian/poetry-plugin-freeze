@@ -18,4 +18,3 @@ ruff = "^0.0.259"
 [build-system]
 requires = ["poetry>=0.12", "setuptools"]
 build-backend = "poetry.masonry.api"
-

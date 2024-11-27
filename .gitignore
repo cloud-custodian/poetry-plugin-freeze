@@ -2,3 +2,5 @@
 __pycache__
 .ruff_cache
 .python-version
+dist
+.venv

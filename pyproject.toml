@@ -26,6 +26,7 @@ pytest = "^7.1"
 pytest-cov = "^4.0"
 pytest-xdist = { version = "^3.1", extras = ["psutil"] }
 ruff = "^0.0.254"
+pre-commit = "^4.0.1"
 
 
 [tool.poetry.plugins."poetry.application.plugin"]

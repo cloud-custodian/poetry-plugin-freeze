@@ -300,9 +300,10 @@ class IcedPoet:
                 record_text = self.freeze_record(record_fh, dist_meta, md_path)
 
             (fd, temp_path) = tempfile.mkstemp(suffix=".whl")
-            with os.fdopen(fd, "w+b") as fd_file, zipfile.ZipFile(
-                fd_file, mode="w", compression=zipfile.ZIP_DEFLATED
-            ) as frozen_whl:
+            with (
+                os.fdopen(fd, "w+b") as fd_file,
+                zipfile.ZipFile(fd_file, mode="w", compression=zipfile.ZIP_DEFLATED) as frozen_whl,
+            ):
                 # first copy all files to frozen zip
                 for info in source_whl.infolist():
                     if info.filename in (md_path, record_path):
