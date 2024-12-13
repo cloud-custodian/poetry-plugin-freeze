@@ -60,8 +60,8 @@ class FreezeCommand(Command):
                 iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
                 iced.check()
                 fridge[iced.name] = iced
-            except PyProjectException:
-                pass
+            except PyProjectException as err:
+                self.line_error(f"skipping {project_root}: {err}")
 
         for iced in fridge.values():
             iced.set_fridge(fridge)
