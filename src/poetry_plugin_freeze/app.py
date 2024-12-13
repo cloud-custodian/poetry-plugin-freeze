@@ -254,7 +254,8 @@ class IcedPoet:
 
     def replace_deps(self, dist_meta, dep_lines):
         start_pos = 0
-        for m in dist_meta.get_all("Requires-Dist"):
+
+        for m in dist_meta.get_all("Requires-Dist", ()):
             if not start_pos:
                 start_pos = dist_meta._headers.index(("Requires-Dist", m))
             dist_meta._headers.remove(("Requires-Dist", m))
@@ -316,7 +317,8 @@ class IcedPoet:
             deps = self.get_path_deps(MAIN_GROUP)
             deps.update(dep_packages)
             dep_lines = self.get_frozen_deps(deps, self.exclude_packages)
-            self.replace_deps(dist_meta, dep_lines)
+            if dep_lines:
+                self.replace_deps(dist_meta, dep_lines)
 
             with source_whl.open(record_path) as record_fh:
                 record_text = self.freeze_record(record_fh, dist_meta, md_path)
