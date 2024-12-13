@@ -1,4 +1,5 @@
 import csv
+import re
 import zipfile
 from email.parser import Parser
 from io import StringIO
@@ -15,12 +16,14 @@ def test_project_roots(fixture_root):
         fixture_root / "nested_packages",
         fixture_root / "nested_packages" / "others" / "app_c",
         fixture_root / "nested_packages" / "others" / "app_with_extras",
+        fixture_root / "non_poetry_package",
     ]
 
 
 def test_excluded_config_path_project_roots(fixture_root):
     assert sorted(project_roots(fixture_root, fixture_root / "nested_packages" / "others")) == [
-        fixture_root / "nested_packages"
+        fixture_root / "nested_packages",
+        fixture_root / "non_poetry_package",
     ]
 
 
@@ -61,6 +64,8 @@ def test_freeze_command_options(fixture_root, monkeypatch):
     tester.execute()
     assert poet_options["wheel_dir"] == "dist"
     assert poet_options["exclude_packages"] == []
+
+    assert re.match("skipping.*non_poetry_package", cmd.io.fetch_error())
 
 
 def test_freeze_nested(fixture_root, fixture_copy):

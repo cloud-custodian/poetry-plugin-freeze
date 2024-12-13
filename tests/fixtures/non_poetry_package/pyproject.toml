@@ -1,0 +1,5 @@
+[project]
+name = "non-poetry-package"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
