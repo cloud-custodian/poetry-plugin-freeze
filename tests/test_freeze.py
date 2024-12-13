@@ -18,6 +18,12 @@ def test_project_roots(fixture_root):
     ]
 
 
+def test_excluded_config_path_project_roots(fixture_root):
+    assert sorted(project_roots(fixture_root, fixture_root / "nested_packages" / "others")) == [
+        fixture_root / "nested_packages"
+    ]
+
+
 def parse_md(md_text: bytes):
     return Parser().parsestr(md_text.decode("utf8"))
 

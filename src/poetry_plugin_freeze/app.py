@@ -13,8 +13,10 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
+from poetry.core.pyproject.exceptions import PyProjectException
 from poetry.core.version.markers import MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
+from poetry.utils.env import EnvManager
 from poetry.core.masonry.metadata import Metadata
 from poetry.core.masonry.utils.helpers import distribution_name
 from poetry.core.version.markers import union as marker_union
@@ -39,15 +41,27 @@ class FreezeCommand(Command):
         ),
     ]
 
+    def project_roots(self, root):
+        env = EnvManager(self.poetry).get()
+
+        excludes = []
+        if env.is_venv():
+            excludes.append(env.path)
+
+        return project_roots(root, *excludes)
+
     def handle(self) -> int:
         self.line("freezing wheels")
         root_dir = self._io and self._io.input.option("directory") or Path.cwd()
 
         fridge = {}
-        for project_root in project_roots(root_dir):
-            iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
-            iced.check()
-            fridge[iced.name] = iced
+        for project_root in self.project_roots(root_dir):
+            try:
+                iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
+                iced.check()
+                fridge[iced.name] = iced
+            except PyProjectException:
+                pass
 
         for iced in fridge.values():
             iced.set_fridge(fridge)
@@ -66,9 +80,17 @@ class FreezeApplicationPlugin(ApplicationPlugin):
         application.command_loader.register_factory("freeze-wheel", factory)
 
 
-def project_roots(root):
+def config_path_excluded(config_path, *excludes):
+    for exclude in excludes:
+        if str(config_path).startswith(str(exclude)):
+            return True
+    return False
+
+
+def project_roots(root, *excludes):
     for config_path in Path(root).rglob("pyproject.toml"):
-        yield config_path.parent
+        if not config_path_excluded(config_path, *excludes):
+            yield config_path.parent
 
 
 def get_sha256_digest(content: bytes):
