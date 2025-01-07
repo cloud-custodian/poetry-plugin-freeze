@@ -13,7 +13,6 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.pyproject.exceptions import PyProjectException
 from poetry.core.version.markers import MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
 from poetry.utils.env import EnvManager
@@ -24,6 +23,13 @@ from poetry.factory import Factory
 from poetry.plugins.application_plugin import ApplicationPlugin
 
 from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
+
+try:
+    # for usage with poetry 1.x (legacy)
+    from poetry.core.pyproject.exceptions import PyProjectException as InvalidPoetryProjectError
+except ImportError:
+    # for usage with poetry 2.x
+    from builtins import RuntimeError as InvalidPoetryProjectError
 
 
 class FreezeCommand(Command):
@@ -60,7 +66,7 @@ class FreezeCommand(Command):
                 iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
                 iced.check()
                 fridge[iced.name] = iced
-            except PyProjectException as err:
+            except InvalidPoetryProjectError as err:
                 self.line_error(f"skipping {project_root}: {err}")
 
         for iced in fridge.values():
@@ -322,9 +328,10 @@ class IcedPoet:
                 record_text = self.freeze_record(record_fh, dist_meta, md_path)
 
             (fd, temp_path) = tempfile.mkstemp(suffix=".whl")
-            with os.fdopen(fd, "w+b") as fd_file, zipfile.ZipFile(
-                fd_file, mode="w", compression=zipfile.ZIP_DEFLATED
-            ) as frozen_whl:
+            with (
+                os.fdopen(fd, "w+b") as fd_file,
+                zipfile.ZipFile(fd_file, mode="w", compression=zipfile.ZIP_DEFLATED) as frozen_whl,
+            ):
                 # first copy all files to frozen zip
                 for info in source_whl.infolist():
                     if info.filename in (md_path, record_path):
