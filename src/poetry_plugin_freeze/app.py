@@ -21,6 +21,9 @@ from poetry.core.masonry.utils.helpers import distribution_name
 from poetry.core.version.markers import union as marker_union
 from poetry.factory import Factory
 from poetry.plugins.application_plugin import ApplicationPlugin
+from poetry.core.packages.utils.utils import create_nested_marker
+from poetry.core.version.markers import parse_marker, BaseMarker
+from poetry.core.constraints.version import VersionConstraint
 
 from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
 
@@ -79,6 +82,10 @@ class FreezeCommand(Command):
 
 def factory():
     return FreezeCommand()
+
+
+def get_python_marker_from_constraint(constraint: VersionConstraint) -> BaseMarker:
+    return parse_marker(create_nested_marker("python_version", constraint))
 
 
 class FreezeApplicationPlugin(ApplicationPlugin):
@@ -162,7 +169,9 @@ class IcedPoet:
                 self.poetry.locker,
                 project_requires=root_package.all_requires,
                 root_package_name=root_package.name,
-                project_python_marker=root_package.python_marker,
+                project_python_marker=get_python_marker_from_constraint(
+                    root_package.python_constraint
+                ),
                 extras=root_package.extras,
             )
         )
@@ -181,7 +190,9 @@ class IcedPoet:
             marked_requirements = []
             for require in requirements:
                 require = require.clone()
-                require.marker = require.marker.intersect(root_package.python_marker)
+                require.marker = require.marker.intersect(
+                    get_python_marker_from_constraint(root_package.python_constraint),
+                )
                 marked_requirements.append(require)
             return marked_requirements
 
