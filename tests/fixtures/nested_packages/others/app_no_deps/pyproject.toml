@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "app_no_deps"
+description = "lorem ipsum"
+version = "0.2"
+authors = ["SideCars"]
+license = "Apache-2.0"
+packages = [
+    { include = "app_no_deps" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.dev.dependencies]
+app_b = {path = "../..", develop = true}
+
+[build-system]
+requires = ["poetry>=0.12", "setuptools"]
+build-backend = "poetry.masonry.api"
+
