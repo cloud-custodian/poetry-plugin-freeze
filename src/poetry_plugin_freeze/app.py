@@ -28,11 +28,10 @@ from poetry.core.constraints.version import VersionConstraint
 from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
 
 try:
-    # for usage with poetry 1.x (legacy)
-    from poetry.core.pyproject.exceptions import PyProjectException as InvalidPoetryProjectError
+    from poetry.core.pyproject.exceptions import PyProjectError
 except ImportError:
-    # for usage with poetry 2.x
-    from builtins import RuntimeError as InvalidPoetryProjectError
+    # Account for the PyProjectException --> PyProjectError rename in Poetry 2.0
+    from poetry.core.pyproject.exceptions import PyProjectException as PyProjectError
 
 
 class FreezeCommand(Command):
@@ -69,7 +68,7 @@ class FreezeCommand(Command):
                 iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
                 iced.check()
                 fridge[iced.name] = iced
-            except InvalidPoetryProjectError as err:
+            except (PyProjectError, RuntimeError) as err:
                 self.line_error(f"skipping {project_root}: {err}")
 
         for iced in fridge.values():
