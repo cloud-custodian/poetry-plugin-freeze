@@ -13,7 +13,6 @@ import zipfile
 from cleo.helpers import option
 from poetry.console.commands.command import Command
 from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.pyproject.exceptions import PyProjectException
 from poetry.core.version.markers import MultiMarker, SingleMarker
 from poetry.packages import DependencyPackage
 from poetry.utils.env import EnvManager
@@ -22,8 +21,17 @@ from poetry.core.masonry.utils.helpers import distribution_name
 from poetry.core.version.markers import union as marker_union
 from poetry.factory import Factory
 from poetry.plugins.application_plugin import ApplicationPlugin
+from poetry.core.packages.utils.utils import create_nested_marker
+from poetry.core.version.markers import parse_marker, BaseMarker
+from poetry.core.constraints.version import VersionConstraint
 
 from poetry_plugin_export.walker import get_project_dependency_packages, walk_dependencies
+
+try:
+    from poetry.core.pyproject.exceptions import PyProjectError
+except ImportError:
+    # Account for the PyProjectException --> PyProjectError rename in Poetry 2.0
+    from poetry.core.pyproject.exceptions import PyProjectException as PyProjectError
 
 
 class FreezeCommand(Command):
@@ -60,7 +68,7 @@ class FreezeCommand(Command):
                 iced = IcedPoet(project_root, self.option("wheel-dir"), self.option("exclude"))
                 iced.check()
                 fridge[iced.name] = iced
-            except PyProjectException as err:
+            except (PyProjectError, RuntimeError) as err:
                 self.line_error(f"skipping {project_root}: {err}")
 
         for iced in fridge.values():
@@ -73,6 +81,10 @@ class FreezeCommand(Command):
 
 def factory():
     return FreezeCommand()
+
+
+def get_python_marker_from_constraint(constraint: VersionConstraint) -> BaseMarker:
+    return parse_marker(create_nested_marker("python_version", constraint))
 
 
 class FreezeApplicationPlugin(ApplicationPlugin):
@@ -156,7 +168,9 @@ class IcedPoet:
                 self.poetry.locker,
                 project_requires=root_package.all_requires,
                 root_package_name=root_package.name,
-                project_python_marker=root_package.python_marker,
+                project_python_marker=get_python_marker_from_constraint(
+                    root_package.python_constraint
+                ),
                 extras=root_package.extras,
             )
         )
@@ -175,7 +189,9 @@ class IcedPoet:
             marked_requirements = []
             for require in requirements:
                 require = require.clone()
-                require.marker = require.marker.intersect(root_package.python_marker)
+                require.marker = require.marker.intersect(
+                    get_python_marker_from_constraint(root_package.python_constraint),
+                )
                 marked_requirements.append(require)
             return marked_requirements
 
@@ -324,9 +340,10 @@ class IcedPoet:
                 record_text = self.freeze_record(record_fh, dist_meta, md_path)
 
             (fd, temp_path) = tempfile.mkstemp(suffix=".whl")
-            with os.fdopen(fd, "w+b") as fd_file, zipfile.ZipFile(
-                fd_file, mode="w", compression=zipfile.ZIP_DEFLATED
-            ) as frozen_whl:
+            with (
+                os.fdopen(fd, "w+b") as fd_file,
+                zipfile.ZipFile(fd_file, mode="w", compression=zipfile.ZIP_DEFLATED) as frozen_whl,
+            ):
                 # first copy all files to frozen zip
                 for info in source_whl.infolist():
                     if info.filename in (md_path, record_path):
