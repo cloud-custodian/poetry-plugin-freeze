@@ -91,16 +91,19 @@ def test_freeze_nested(fixture_root, fixture_copy):
     )
 
     expected_headers = [
-        ("Metadata-Version", "2.1"),
-        ("Name", "app-c"),
+        ("Metadata-Version", "2.3"),
+        ("Name", "app_c"),
         ("Version", "0.2"),
         ("Summary", "lorem ipsum"),
         ("License", "Apache-2.0"),
         ("Author", "SideCars"),
-        ("Requires-Python", ">=3.11,<4.0"),
+        ("Requires-Python", ">=3.10,<4.0"),
         ("Classifier", "License :: OSI Approved :: Apache Software License"),
         ("Classifier", "Programming Language :: Python :: 3"),
+        ("Classifier", "Programming Language :: Python :: 3.10"),
         ("Classifier", "Programming Language :: Python :: 3.11"),
+        ("Classifier", "Programming Language :: Python :: 3.12"),
+        ("Classifier", "Programming Language :: Python :: 3.13"),
         (
             "Requires-Dist",
             'pytest (==7.2.2) ; python_version >= "3.10" and python_version < "4.0"',
@@ -136,6 +139,14 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ),
         (
             "Requires-Dist",
+            'urllib3 (==1.26.20) ; python_version >= "3.10" and python_version < "3.11"',
+        ),
+        (
+            "Requires-Dist",
+            'urllib3 (==2.3.0) ; python_version >= "3.11" and python_version < "4.0"',
+        ),
+        (
+            "Requires-Dist",
             'pytest-cov (==4.0.0) ; python_version >= "3.10" and python_version < "4.0"',
         ),
         (
@@ -153,20 +164,20 @@ def test_freeze_nested(fixture_root, fixture_copy):
         ],
         [
             "app_c-0.2.dist-info/WHEEL",
-            "sha256=kLuE8m1WYU0Ig0_YEGrXyTtiJvKPpLpDEiChiNyei5Y",
+            "sha256=IYZQI976HJqqOpQU6PHkJ8fb3tMNBFjg-Cn-pwAbaFM",
             "88",
         ],
         ["app_c-0.2.dist-info/RECORD", "", ""],
         [
             "app_c-0.2.dist-info/METADATA",
-            "sha256=ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o",
-            "1217",
+            "sha256=Y0clowJC222mCfG3SHng-M--m9e9Xz9CHRVarGNDlcY",
+            "1547",
         ],
     ]
 
     md_bytes = wheel.open(f"{iced_sub.distro_name}-{iced_sub.version}.dist-info/METADATA").read()
-    assert len(md_bytes) == 1217
-    assert get_sha256_digest(md_bytes) == "ZTdp4AJVW1WFj_Wv5oUVdtUC1_5r9bYWNxDzssJgO6o"
+    assert len(md_bytes) == 1547
+    assert get_sha256_digest(md_bytes) == "Y0clowJC222mCfG3SHng-M--m9e9Xz9CHRVarGNDlcY"
 
 
 def test_freeze_no_deps(fixture_root, fixture_copy):

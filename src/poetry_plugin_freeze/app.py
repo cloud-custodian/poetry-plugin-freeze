@@ -2,6 +2,7 @@ from base64 import urlsafe_b64encode
 import csv
 from email.parser import Parser
 from functools import lru_cache
+from itertools import chain
 import hashlib
 from io import StringIO, TextIOWrapper
 from pathlib import Path
@@ -155,15 +156,15 @@ class IcedPoet:
         wheels = list(self.get_wheels())
         if not wheels:
             return []
-        dep_package_map = self.get_dep_packages()
+        dep_packages = self.get_dep_packages()
         for w in wheels:
-            self.freeze_wheel(w, dep_package_map)
+            self.freeze_wheel(w, dep_packages)
         return wheels
 
     def get_dep_packages(self):
         root_package = self.poetry.package.with_dependency_groups([MAIN_GROUP], only=True)
 
-        dep_packages = list(
+        return list(
             get_project_dependency_packages(
                 self.poetry.locker,
                 project_requires=root_package.all_requires,
@@ -174,7 +175,6 @@ class IcedPoet:
                 extras=root_package.extras,
             )
         )
-        return {p.package.name: p for p in dep_packages}
 
     @lru_cache(maxsize=None)
     def get_dependency_sources(self):
@@ -197,7 +197,9 @@ class IcedPoet:
 
         repository = self.poetry.locker.locked_repository()
         root_package = self.poetry.package
-        locked_packages_by_name = {p.name: [p] for p in repository.packages}
+        locked_packages_by_name = {}
+        for pkg in repository.packages:
+            locked_packages_by_name.setdefault(pkg.name, []).append(pkg)
         dependency_sources = {}
         base_requires = [
             dep
@@ -249,7 +251,7 @@ class IcedPoet:
     def get_frozen_deps(self, dep_packages, exclude_packages=None):
         lines = []
         dependency_sources = self.get_dependency_sources()
-        for pkg_name, dep_package in dep_packages.items():
+        for dep_package in dep_packages:
             self.compact_markers(dep_package.dependency)
             # Freeze extra markers for dependencies which were pulled in via extras
             # Don't freeze markers if a dependency is also part of the base
@@ -261,7 +263,7 @@ class IcedPoet:
                 lines.append(requirement)
                 continue
 
-            require_dist = "%s (==%s)" % (pkg_name, dep_package.package.version)
+            require_dist = "%s (==%s)" % (dep_package.package.name, dep_package.package.version)
             if ";" in requirement:
                 markers = requirement.split(";", 1)[1].strip()
                 require_dist += f" ; {markers}"
@@ -283,7 +285,6 @@ class IcedPoet:
 
     def get_path_deps(self, group="dev"):
         # assuming we're consistent install across deps.
-        package_deps = {}
         group = self.poetry.package.dependency_group(group)
         for dep in group.dependencies:
             if not (dep.is_file() or dep.is_directory()):
@@ -296,8 +297,7 @@ class IcedPoet:
             iced_dep = iced.poetry.package.to_dependency()
             iced_dep.marker = MultiMarker(dep.marker, iced_dep.marker)
             package_dep = DependencyPackage(dependency=iced_dep, package=iced.poetry.package)
-            package_deps[dep.name] = package_dep
-        return package_deps
+            yield package_dep
 
     def freeze_record(self, records_fh, dist_meta, md_path):
         hash_digest = get_sha256_digest(str(dist_meta).encode("utf8"))
@@ -330,9 +330,8 @@ class IcedPoet:
             # freeze deps in metadata and update records
             md_text = source_whl.open(md_path).read().decode("utf8")
             dist_meta = Parser().parsestr(md_text)
-            deps = self.get_path_deps(MAIN_GROUP)
-            deps.update(dep_packages)
-            dep_lines = self.get_frozen_deps(deps, self.exclude_packages)
+            path_deps = self.get_path_deps(MAIN_GROUP)
+            dep_lines = self.get_frozen_deps(chain(path_deps, dep_packages), self.exclude_packages)
             if dep_lines:
                 self.replace_deps(dist_meta, dep_lines)
 
